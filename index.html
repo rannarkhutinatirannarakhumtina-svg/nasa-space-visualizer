@@ -273,10 +273,10 @@
     }
   }
 
-  // Attach event listeners for mouse actions
-  window.addEventListener('mousedown', onMouseDown);
-  window.addEventListener('mousemove', onMouseMove);
-
+ // AFTER (Bypasses OrbitControls event swallowing):
+renderer.domElement.addEventListener('pointerdown', onMouseDown);
+renderer.domElement.addEventListener('pointermove', onMouseMove);
+  
   // Handle HTML Close Button
   document.getElementById('close-btn').addEventListener('click', () => {
     document.getElementById('click-panel').style.display = 'none';
