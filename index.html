@@ -2,55 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NASA 3D Space Visualizer (Click Enabled)</title>
+  <title>NASA 3D Space Visualizer</title>
   <style>
-    body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; cursor: default; }
+    body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
     canvas { display: block; }
     
-    /* Global Info Panel (Top Left) */
+    /* Top Left Info Panel */
     #info-panel {
       position: absolute;
       top: 20px;
       left: 20px;
       color: #fff;
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.8);
       padding: 15px 20px;
       border-radius: 8px;
       border: 1px solid #333;
-      max-width: 300px;
+      max-width: 280px;
       pointer-events: none;
-      z-index: 10;
+      z-index: 99;
     }
     #info-panel h1 { margin: 0 0 5px 0; font-size: 18px; color: #4af; }
     #info-panel p { margin: 5px 0; font-size: 13px; color: #ccc; }
 
-    /* --- NEW CSS FOR CLICK POPUP (Top Right) --- */
+    /* Top Right Click Panel Overlay */
     #click-panel {
       position: absolute;
       top: 20px;
       right: 20px;
       color: #fff;
-      background: rgba(10, 10, 30, 0.9);
+      background: rgba(10, 15, 30, 0.95);
       padding: 20px;
       border-radius: 10px;
       border: 2px solid #5af;
-      width: 250px;
-      display: none; /* Hidden until something is clicked */
-      z-index: 100;
-      box-shadow: 0 0 15px rgba(80, 170, 255, 0.5);
+      width: 260px;
+      display: none; /* Controlled by JS */
+      z-index: 1000;
+      box-shadow: 0 0 20px rgba(80, 170, 255, 0.6);
     }
-    #click-panel h2 { margin: 0 0 10px 0; font-size: 18px; color: #fff; text-shadow: 0 0 5px #5af; }
-    #click-panel p { margin: 8px 0; font-size: 14px; color: #eee; }
+    #click-panel h2 { margin: 0 0 10px 0; font-size: 18px; color: #5af; }
+    #click-panel p { margin: 8px 0; font-size: 13px; color: #eee; }
     #click-panel .hazardous { color: #ff4444; font-weight: bold; }
     #click-panel .safe { color: #4f4; font-weight: bold; }
     #close-btn {
       position: absolute;
       top: 10px;
-      right: 10px;
+      right: 12px;
       background: none;
       border: none;
       color: #aaa;
-      font-size: 18px;
+      font-size: 20px;
       cursor: pointer;
     }
     #close-btn:hover { color: #fff; }
@@ -60,21 +60,21 @@
 </head>
 <body>
 
-  <!-- Global Info Panel (Left) -->
+  <!-- Top Left Panel -->
   <div id="info-panel">
     <h1>NASA Near-Earth Asteroids</h1>
     <p id="status">Fetching real live data from NASA...</p>
     <p id="count"></p>
-    <p style="color: #888; font-style: italic; margin-top: 10px;">Click an asteroid for details.</p>
+    <p style="color: #888; font-style: italic; margin-top: 10px;">Click any rock to inspect NASA data.</p>
   </div>
 
-  <!-- --- NEW CLICK PANEL (Right) --- -->
+  <!-- Top Right Click Panel -->
   <div id="click-panel">
-    <button id="close-btn">&times;</button>
+    <button id="close-btn" onclick="document.getElementById('click-panel').style.display='none'">&times;</button>
     <h2 id="ast-name">Asteroid Details</h2>
-    <p>Diameter (Max): <span id="ast-size"></span> meters</p>
+    <p>Max Diameter: <span id="ast-size"></span> meters</p>
     <p>Velocity: <span id="ast-vel"></span> km/h</p>
-    <p>Classification: <span id="ast-haz" class="safe"></span></p>
+    <p>Status: <span id="ast-haz"></span></p>
   </div>
 
 <script>
@@ -92,7 +92,7 @@
   sunLight.position.set(5, 3, 5);
   scene.add(sunLight);
 
-  // 3. STARFIELD BACKGROUND
+  // 3. STARFIELD
   const starsGeometry = new THREE.BufferGeometry();
   const starsCount = 3000;
   const starPositions = new Float32Array(starsCount * 3);
@@ -104,7 +104,7 @@
   const starfield = new THREE.Points(starsGeometry, starsMaterial);
   scene.add(starfield);
 
-  // 4. EARTH & MOON MESHES
+  // 4. EARTH & MOON
   const textureLoader = new THREE.TextureLoader();
   const earthTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
   const earth = new THREE.Mesh(
@@ -123,47 +123,19 @@
   let moonAngle = 0;
   const moonOrbitRadius = 4.5;
 
-  // --- NEW ARRAY FOR RAYCASTING ---
-  // This will store only the meshes we want the user to be able to click
+  // 5. ASTEROID CREATION & DATA
   const clickableObjects = [];
-
-  // --- NEW UI FUNCTION ---
-  // Populates and shows the top-right data panel
-  function showAsteroidData(asteroidData) {
-    const panel = document.getElementById('click-panel');
-    const hazSpan = document.getElementById('ast-haz');
-    
-    document.getElementById('ast-name').innerText = asteroidData.name;
-    document.getElementById('ast-size').innerText = Math.round(asteroidData.diameter);
-    document.getElementById('ast-vel').innerText = Number(asteroidData.velocity).toLocaleString();
-
-    if (asteroidData.isHazardous) {
-      hazSpan.innerText = "Potentially Hazardous";
-      hazSpan.className = "hazardous";
-    } else {
-      hazSpan.innerText = "Safe Near-Earth Object";
-      hazSpan.className = "safe";
-    }
-    panel.style.display = 'block';
-  }
-
-  // 5. FETCH LIVE NASA ASTEROID DATA (WITH CLICKABLE OBJECTS)
   const asteroidsData = [];
   const statusElem = document.getElementById('status');
   const countElem = document.getElementById('count');
 
-  // Helper function to generate 3D asteroid rocks on screen
   function createAsteroid(name, diameterMeters, isHazardous, velocity) {
-    // Determine size based on actual meters
-    const size = Math.max(0.08, Math.min(0.3, diameterMeters / 400));
+    const size = Math.max(0.12, Math.min(0.35, diameterMeters / 300));
     const asteroidGeometry = new THREE.DodecahedronGeometry(size, 1);
-    
-    // Highlight hazardous asteroids in reddish color, others in gray
     const color = isHazardous ? 0xff4444 : 0x888888;
     const asteroidMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: 0.9 });
     const asteroidMesh = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
 
-    // Random orbit position around Earth
     const radius = 5.5 + Math.random() * 8;
     const angle = Math.random() * Math.PI * 2;
     const speed = (Math.random() * 0.004) + 0.002;
@@ -174,8 +146,6 @@
 
     scene.add(asteroidMesh);
 
-    // --- NEW: LINK MESH TO DATA ---
-    // Store data inside the Mesh object itself so we can retrieve it easily later
     asteroidMesh.userData = {
       name: name,
       diameter: diameterMeters,
@@ -183,7 +153,6 @@
       velocity: velocity
     };
     
-    // --- NEW: ADD TO RAYCAST ARRAY ---
     clickableObjects.push(asteroidMesh);
 
     asteroidsData.push({
@@ -194,7 +163,7 @@
     });
   }
 
-  // Get current dynamic date formatted as YYYY-MM-DD
+  // Fetch NASA API Data
   const today = new Date().toISOString().split('T')[0];
   const nasaApiUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=DEMO_KEY`;
 
@@ -218,14 +187,11 @@
       statusElem.style.color = '#4f4';
       countElem.innerText = `Tracked Asteroids Near Earth: ${totalAsteroids}`;
     })
-    .catch(error => {
-      // If network fails or API limit reached, generate 20 realistic asteroids as fallback!
+    .catch(() => {
       statusElem.innerText = 'Running in Simulated Asteroid Mode';
       statusElem.style.color = '#ffaa00';
-      
       for (let i = 0; i < 20; i++) {
-        // Fallback data (since simulated mode won't have real NASA names/velocity)
-        createAsteroid(`Asteroid-${i+1}`, 100 + Math.random() * 300, i % 5 === 0, 45000 + (Math.random()*10000));
+        createAsteroid(`Asteroid-${i+1}`, 100 + Math.random() * 300, i % 5 === 0, 42000 + Math.random()*15000);
       }
       countElem.innerText = 'Tracked Asteroids Near Earth: 20 (Simulated)';
     });
@@ -233,75 +199,71 @@
   // 6. CAMERA & CONTROLS
   camera.position.z = 12;
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.minDistance = 3; // Prevent zooming inside Earth
-  controls.maxDistance = 30;
 
-  // --- NEW: RAYCASTER SETUP & CLICK EVENT ---
+  // 7. RAYCASTING & CLICK LOGIC
   const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2(); // Stores normalized mouse coordinates
+  const mouse = new THREE.Vector2();
 
-  function onMouseDown(event) {
-    // A. Convert raw screen pixels into Three.js normalized coordinates (-1 to +1)
+  function checkClick(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    // B. Tell raycaster to aim from the camera, directly through the mouse pointer
     raycaster.setFromCamera(mouse, camera);
-
-    // C. Check if that ray hits any objects in our 'clickableObjects' array
     const intersects = raycaster.intersectObjects(clickableObjects);
 
-    // D. If we found intersections, we process the closest one (the first item)
     if (intersects.length > 0) {
-      const clickedAsteroid = intersects[0].object;
-      console.log("You clicked:", clickedAsteroid.userData.name); // Log in console for testing
-      showAsteroidData(clickedAsteroid.userData); // Show HTML overlay
+      const asteroid = intersects[0].object;
+      const data = asteroid.userData;
+
+      // Update Panel Content
+      document.getElementById('ast-name').innerText = data.name;
+      document.getElementById('ast-size').innerText = Math.round(data.diameter);
+      document.getElementById('ast-vel').innerText = Math.round(Number(data.velocity)).toLocaleString();
+
+      const hazElem = document.getElementById('ast-haz');
+      if (data.isHazardous) {
+        hazElem.innerText = "Potentially Hazardous";
+        hazElem.className = "hazardous";
+      } else {
+        hazElem.innerText = "Safe Near-Earth Object";
+        hazElem.className = "safe";
+      }
+
+      // Show panel directly
+      const panel = document.getElementById('click-panel');
+      panel.style.display = 'block';
     }
   }
 
-  // --- NEW: CURSOR VISUAL FEEDBACK ---
-  function onMouseMove(event) {
+  // Hover effect to update cursor
+  window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
     raycaster.setFromCamera(mouse, camera);
-
     const intersects = raycaster.intersectObjects(clickableObjects);
-    if (intersects.length > 0) {
-      document.body.style.cursor = 'pointer'; // Show hand icon when hovering over clickable
-    } else {
-      document.body.style.cursor = 'default';
-    }
-  }
-
- // AFTER (Bypasses OrbitControls event swallowing):
-renderer.domElement.addEventListener('pointerdown', onMouseDown);
-renderer.domElement.addEventListener('pointermove', onMouseMove);
-  
-  // Handle HTML Close Button
-  document.getElementById('close-btn').addEventListener('click', () => {
-    document.getElementById('click-panel').style.display = 'none';
+    document.body.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
   });
 
+  // Dual click triggers to guarantee touch/mouse detection
+  window.addEventListener('click', checkClick);
 
-  // 7. ANIMATION LOOP
+  // 8. ANIMATION LOOP
   function animate() {
     requestAnimationFrame(animate);
 
-    // Rotate Earth and Moon
     earth.rotation.y += 0.002;
-    moon.rotation.y += 0.0001; // Slower realistic rotation
+    moon.rotation.y += 0.0001;
 
-    // Orbit Moon around Earth
     moonAngle += 0.008;
     moon.position.x = Math.cos(moonAngle) * moonOrbitRadius;
     moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
 
-    // Orbit all NASA asteroids around Earth
     asteroidsData.forEach(ast => {
       ast.angle += ast.speed;
       ast.mesh.position.x = Math.cos(ast.angle) * ast.radius;
       ast.mesh.position.z = Math.sin(ast.angle) * ast.radius;
-      ast.mesh.rotation.x += 0.01; // Spin rock
+      ast.mesh.rotation.x += 0.01;
       ast.mesh.rotation.y += 0.01;
     });
 
