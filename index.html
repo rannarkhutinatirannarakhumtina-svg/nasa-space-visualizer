@@ -78,13 +78,44 @@
   let moonAngle = 0;
   const moonOrbitRadius = 4.5;
 
-  // 5. FETCH LIVE NASA ASTEROID DATA (API)
+  // 5. FETCH LIVE NASA ASTEROID DATA (WITH AUTOMATIC FALLBACK)
   const asteroids = [];
   const statusElem = document.getElementById('status');
   const countElem = document.getElementById('count');
 
-  // NASA's DEMO_KEY API endpoint for Near Earth Objects (NEO)
-  const nasaApiUrl = 'https://api.nasa.gov/neo/rest/v1/feed?start_date=2026-08-01&end_date=2026-08-07&api_key=DEMO_KEY';
+  // Helper function to generate 3D asteroid rocks on screen
+  function createAsteroid(name, diameterMeters, isHazardous) {
+    // Determine size based on actual meters
+    const size = Math.max(0.08, Math.min(0.3, diameterMeters / 400));
+    const asteroidGeometry = new THREE.DodecahedronGeometry(size, 1);
+    
+    // Highlight hazardous asteroids in reddish color, others in gray
+    const color = isHazardous ? 0xff4444 : 0x888888;
+    const asteroidMaterial = new THREE.MeshStandardMaterial({ color: color, roughness: 0.9 });
+    const asteroidMesh = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
+
+    // Random orbit position around Earth
+    const radius = 5.5 + Math.random() * 8;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = (Math.random() * 0.004) + 0.002;
+
+    asteroidMesh.position.x = Math.cos(angle) * radius;
+    asteroidMesh.position.z = Math.sin(angle) * radius;
+    asteroidMesh.position.y = (Math.random() - 0.5) * 4;
+
+    scene.add(asteroidMesh);
+
+    asteroids.push({
+      mesh: asteroidMesh,
+      angle: angle,
+      radius: radius,
+      speed: speed
+    });
+  }
+
+  // Get current dynamic date formatted as YYYY-MM-DD
+  const today = new Date().toISOString().split('T')[0];
+  const nasaApiUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=DEMO_KEY`;
 
   fetch(nasaApiUrl)
     .then(response => response.json())
@@ -92,44 +123,28 @@
       const nearEarthObjects = data.near_earth_objects;
       let totalAsteroids = 0;
 
-      // Loop through dates returned by NASA API
       Object.keys(nearEarthObjects).forEach(date => {
         nearEarthObjects[date].forEach(asteroid => {
           totalAsteroids++;
-
-          // Create a 3D Mesh for each asteroid (small gray rock)
-          const size = Math.max(0.08, Math.min(0.25, asteroid.estimated_diameter.meters.estimated_diameter_max / 500));
-          const asteroidGeometry = new THREE.DodecahedronGeometry(size, 1);
-          const asteroidMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 });
-          const asteroidMesh = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
-
-          // Randomize orbit radius around Earth (between 6 and 14 units out)
-          const radius = 6 + Math.random() * 8;
-          const angle = Math.random() * Math.PI * 2;
-          const speed = (Math.random() * 0.005) + 0.002;
-
-          asteroidMesh.position.x = Math.cos(angle) * radius;
-          asteroidMesh.position.z = Math.sin(angle) * radius;
-          asteroidMesh.position.y = (Math.random() - 0.5) * 4; // Slight vertical tilt
-
-          scene.add(asteroidMesh);
-
-          // Save asteroid orbit parameters for animation
-          asteroids.push({
-            mesh: asteroidMesh,
-            angle: angle,
-            radius: radius,
-            speed: speed
-          });
+          const diameter = asteroid.estimated_diameter.meters.estimated_diameter_max;
+          const isHazardous = asteroid.is_potentially_hazardous_asteroid;
+          createAsteroid(asteroid.name, diameter, isHazardous);
         });
       });
 
       statusElem.innerText = 'Connected to NASA NeoWS API!';
+      statusElem.style.color = '#4f4';
       countElem.innerText = `Tracked Asteroids Near Earth: ${totalAsteroids}`;
     })
     .catch(error => {
-      statusElem.innerText = 'Unable to load NASA data. Check connection.';
-      console.error(error);
+      // If network fails or API limit reached, generate 20 realistic asteroids as fallback!
+      statusElem.innerText = 'Running in Simulated Asteroid Mode';
+      statusElem.style.color = '#ffaa00';
+      
+      for (let i = 0; i < 20; i++) {
+        createAsteroid(`Asteroid-${i+1}`, 100 + Math.random() * 300, i % 5 === 0);
+      }
+      countElem.innerText = 'Tracked Asteroids Near Earth: 20 (Simulated)';
     });
 
   // 6. CAMERA & CONTROLS
