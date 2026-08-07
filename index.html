@@ -7,42 +7,70 @@
     body { margin: 0; overflow: hidden; background-color: #000; }
     canvas { display: block; }
   </style>
-  <!-- Load Three.js 3D library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- Load OrbitControls for mouse interaction -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 
 <script>
-  // 1. Scene, Camera, and Renderer Setup
+  // 1. SCENE & CAMERA SETUP
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // 2. Lighting
+  // 2. LIGHTING
+  // Ambient light provides soft overall light; directional light acts like the Sun
   const ambientLight = new THREE.AmbientLight(0x333333);
   scene.add(ambientLight);
-  const pointLight = new THREE.PointLight(0xffffff, 2, 300);
-  pointLight.position.set(10, 10, 10);
-  scene.add(pointLight);
 
-  // 3. Central Planet Mesh
-  const geometry = new THREE.SphereGeometry(2, 32, 32);
-  const material = new THREE.MeshStandardMaterial({ color: 0x2288ff, wireframe: true });
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  sunLight.position.set(5, 3, 5);
+  scene.add(sunLight);
+
+  // 3. CREATE STARFIELD BACKGROUND
+  const starsGeometry = new THREE.BufferGeometry();
+  const starsCount = 3000;
+  const starPositions = new Float32Array(starsCount * 3);
+
+  for (let i = 0; i < starsCount * 3; i++) {
+    // Spread stars in a random 3D cube range from -200 to +200
+    starPositions[i] = (Math.random() - 0.5) * 400;
+  }
+
+  starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+  const starfield = new THREE.Points(starsGeometry, starsMaterial);
+  scene.add(starfield);
+
+  // 4. EARTH WITH REALISTIC TEXTURE
+  const textureLoader = new THREE.TextureLoader();
+  // Using a reliable NASA Blue Marble Earth image hosted online
+  const earthTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+
+  const geometry = new THREE.SphereGeometry(2, 64, 64);
+  const material = new THREE.MeshStandardMaterial({ 
+    map: earthTexture,
+    roughness: 0.8 
+  });
   const earth = new THREE.Mesh(geometry, material);
   scene.add(earth);
 
-  // 4. Position Camera & Mouse Controls
-  camera.position.z = 8;
+  // 5. CAMERA & CONTROLS
+  camera.position.z = 7;
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-  // 5. Animation Loop
+  // 6. ANIMATION LOOP
   function animate() {
     requestAnimationFrame(animate);
-    earth.rotation.y += 0.005; // Spin planet
+
+    // Slowly rotate Earth
+    earth.rotation.y += 0.002;
+
+    // Slowly rotate stars in background for subtle depth
+    starfield.rotation.y -= 0.0002;
+
     controls.update();
     renderer.render(scene, camera);
   }
