@@ -21,7 +21,6 @@
   document.body.appendChild(renderer.domElement);
 
   // 2. LIGHTING
-  // Ambient light provides soft overall light; directional light acts like the Sun
   const ambientLight = new THREE.AmbientLight(0x333333);
   scene.add(ambientLight);
 
@@ -29,13 +28,12 @@
   sunLight.position.set(5, 3, 5);
   scene.add(sunLight);
 
-  // 3. CREATE STARFIELD BACKGROUND
+  // 3. STARFIELD BACKGROUND
   const starsGeometry = new THREE.BufferGeometry();
   const starsCount = 3000;
   const starPositions = new Float32Array(starsCount * 3);
 
   for (let i = 0; i < starsCount * 3; i++) {
-    // Spread stars in a random 3D cube range from -200 to +200
     starPositions[i] = (Math.random() - 0.5) * 400;
   }
 
@@ -44,31 +42,46 @@
   const starfield = new THREE.Points(starsGeometry, starsMaterial);
   scene.add(starfield);
 
-  // 4. EARTH WITH REALISTIC TEXTURE
+  // 4. EARTH MESH
   const textureLoader = new THREE.TextureLoader();
-  // Using a reliable NASA Blue Marble Earth image hosted online
   const earthTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
-
   const geometry = new THREE.SphereGeometry(2, 64, 64);
-  const material = new THREE.MeshStandardMaterial({ 
-    map: earthTexture,
-    roughness: 0.8 
-  });
+  const material = new THREE.MeshStandardMaterial({ map: earthTexture, roughness: 0.8 });
   const earth = new THREE.Mesh(geometry, material);
   scene.add(earth);
 
-  // 5. CAMERA & CONTROLS
-  camera.position.z = 7;
+  // 5. MOON MESH (Smaller sphere orbiting Earth)
+  const moonTexture = textureLoader.load('https://threejs.org/examples/textures/planets/moon_1024.jpg');
+  const moonGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+  const moonMaterial = new THREE.MeshStandardMaterial({ map: moonTexture, roughness: 0.9 });
+  const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+  scene.add(moon);
+
+  // Orbital parameters for the Moon
+  let moonAngle = 0;
+  const moonOrbitRadius = 4.5;
+  const moonOrbitSpeed = 0.01;
+
+  // 6. CAMERA & CONTROLS
+  camera.position.z = 10;
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
-  // 6. ANIMATION LOOP
+  // 7. ANIMATION LOOP
   function animate() {
     requestAnimationFrame(animate);
 
-    // Slowly rotate Earth
+    // Rotate Earth
     earth.rotation.y += 0.002;
 
-    // Slowly rotate stars in background for subtle depth
+    // Rotate Moon on its own axis
+    moon.rotation.y += 0.005;
+
+    // Calculate Moon's orbital position using Sine and Cosine
+    moonAngle += moonOrbitSpeed;
+    moon.position.x = Math.cos(moonAngle) * moonOrbitRadius;
+    moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
+
+    // Rotate stars
     starfield.rotation.y -= 0.0002;
 
     controls.update();
