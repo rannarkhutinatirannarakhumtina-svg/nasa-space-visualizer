@@ -96,6 +96,7 @@
   <div id="audio-status">Audio: Click screen to enable</div>
 
 <script>
+
   // -------------------------------------------------------------
   // AUDIO SYNTHESIZER (Web Audio API)
   // -------------------------------------------------------------
@@ -105,24 +106,35 @@
   let audioInitialized = false;
 
   function initAudio() {
-    if (audioInitialized) return;
+    if (audioInitialized) {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return;
+    }
     
-    // Create Audio Context
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
 
-    // Low, deep cosmic background hum (Dual Sine Wave Oscillators)
+    // Ensure Audio Context is active
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    // Audible Ambient Cosmic Hum (Low Frequency Tri-Oscillator)
     ambientOsc1 = audioCtx.createOscillator();
     ambientOsc2 = audioCtx.createOscillator();
     const ambientGain = audioCtx.createGain();
 
+    // Use sawtooth/sine combination for rich ambient space drone
     ambientOsc1.type = 'sine';
-    ambientOsc1.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A note
+    ambientOsc1.frequency.setValueAtTime(65, audioCtx.currentTime); // Low Deep Drone
 
-    ambientOsc2.type = 'sine';
-    ambientOsc2.frequency.setValueAtTime(110, audioCtx.currentTime); // Subtle octave higher
+    ambientOsc2.type = 'triangle';
+    ambientOsc2.frequency.setValueAtTime(130, audioCtx.currentTime); // Harmonic layer
 
-    ambientGain.gain.setValueAtTime(0.04, audioCtx.currentTime); // Very quiet ambient background
+    // Raised gain from 0.04 to 0.18 so it's clearly audible
+    ambientGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
 
     ambientOsc1.connect(ambientGain);
     ambientOsc2.connect(ambientGain);
@@ -137,7 +149,7 @@
     document.getElementById('audio-status').style.borderColor = '#4f4';
   }
 
-  // Sci-Fi Scan Beep Sound when clicking an asteroid
+  // High-Pitched "Among Us" Style Sci-Fi UI Click Sound
   function playScanSound() {
     if (!audioCtx) return;
     if (audioCtx.state === 'suspended') {
@@ -147,28 +159,28 @@
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    osc.type = 'sine';
-    // Frequency sweep from 800Hz to 1200Hz for a futuristic ping
-    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.12);
+    // Triangle wave gives it that sharp retro arcade/sci-fi bite
+    osc.type = 'triangle';
+    
+    // Rapid high-pitched frequency sweep (1200Hz -> 2800Hz)
+    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(2800, audioCtx.currentTime + 0.08);
 
-    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
 
     osc.start();
-    osc.stop(audioCtx.currentTime + 0.12);
+    osc.stop(audioCtx.currentTime + 0.08);
   }
 
-  // Enable audio on first user click anywhere on screen
+  // Universal Click Trigger for Audio Activation
   window.addEventListener('click', () => {
     initAudio();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-  }, { once: false });
+  });
+  
 
 
   // -------------------------------------------------------------
