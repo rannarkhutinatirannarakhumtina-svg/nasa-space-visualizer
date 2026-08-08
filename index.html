@@ -80,7 +80,7 @@
     <h1>NASA Near-Earth Asteroids</h1>
     <p id="status">Fetching real live data from NASA...</p>
     <p id="count"></p>
-    <p style="color: #888; font-style: italic; margin-top: 10px;">Click screen once to activate sound. Click an asteroid to inspect NASA data.</p>
+    <p style="color: #888; font-style: italic; margin-top: 10px;">Click screen to start sound. Zoom into Saturn to see individual ring rocks!</p>
   </div>
 
   <!-- Top Right Click Panel -->
@@ -117,24 +117,20 @@
       audioCtx.resume();
     }
 
-    // CONTINUOUS AMBIENT COSMIC DRONE
     const osc1 = audioCtx.createOscillator();
     const osc2 = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
 
-    // Low cosmic frequencies (Sine + Sawtooth mix)
     osc1.type = 'sawtooth';
-    osc1.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A
+    osc1.frequency.setValueAtTime(55, audioCtx.currentTime);
 
     osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(110, audioCtx.currentTime); // Octave
+    osc2.frequency.setValueAtTime(110, audioCtx.currentTime);
 
-    // Lowpass filter to soften the synth hum into space ambiance
     const filter = audioCtx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(220, audioCtx.currentTime);
 
-    // Master Volume for Ambient Drone
     gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
 
     osc1.connect(filter);
@@ -151,7 +147,6 @@
     document.getElementById('audio-status').style.borderColor = '#4f4';
   }
 
-  // HIGH-PITCHED AMONG US STYLE CLICK SOUND
   function playHighPitchClick() {
     if (!audioCtx) return;
     if (audioCtx.state === 'suspended') {
@@ -161,10 +156,7 @@
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    // Triangle wave for crisp arcade interface chirp
     osc.type = 'triangle';
-
-    // High frequency sweep (1400Hz up to 3200Hz)
     const now = audioCtx.currentTime;
     osc.frequency.setValueAtTime(1400, now);
     osc.frequency.exponentialRampToValueAtTime(3200, now + 0.07);
@@ -179,11 +171,9 @@
     osc.stop(now + 0.07);
   }
 
-  // GLOBAL CLICK ACTIVATOR
   window.addEventListener('pointerdown', () => {
     startAudioEngine();
   });
-
 
   // -------------------------------------------------------------
   // 1. THREE.JS SCENE SETUP
@@ -194,11 +184,18 @@
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // 2. LIGHTING
-  const ambientLight = new THREE.AmbientLight(0x404040);
+  // 2. LIGHTING & THE GLOWING SUN
+  const ambientLight = new THREE.AmbientLight(0x333333);
   scene.add(ambientLight);
-  const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
-  sunLight.position.set(5, 3, 5);
+
+  const sunGeometry = new THREE.SphereGeometry(3.5, 32, 32);
+  const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+  const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+  sun.position.set(-25, 10, -30);
+  scene.add(sun);
+
+  const sunLight = new THREE.PointLight(0xffffff, 2.0, 300);
+  sunLight.position.copy(sun.position);
   scene.add(sunLight);
 
   // 3. STARFIELD
@@ -213,8 +210,10 @@
   const starfield = new THREE.Points(starsGeometry, starsMaterial);
   scene.add(starfield);
 
-  // 4. EARTH & MOON
+  // 4. PLANETS & MOON
   const textureLoader = new THREE.TextureLoader();
+
+  // EARTH
   const earthTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
   const earth = new THREE.Mesh(
     new THREE.SphereGeometry(2, 64, 64),
@@ -222,15 +221,88 @@
   );
   scene.add(earth);
 
+  // MOON
   const moonTexture = textureLoader.load('https://threejs.org/examples/textures/planets/moon_1024.jpg');
   const moon = new THREE.Mesh(
     new THREE.SphereGeometry(0.5, 32, 32),
     new THREE.MeshStandardMaterial({ map: moonTexture, roughness: 0.9 })
   );
   scene.add(moon);
-
   let moonAngle = 0;
   const moonOrbitRadius = 4.5;
+
+  // MARS
+  const marsTexture = textureLoader.load('https://threejs.org/examples/textures/planets/mars_1024.jpg');
+  const mars = new THREE.Mesh(
+    new THREE.SphereGeometry(1.2, 32, 32),
+    new THREE.MeshStandardMaterial({ map: marsTexture, roughness: 0.8 })
+  );
+  scene.add(mars);
+  let marsAngle = Math.PI / 4;
+  const marsOrbitRadius = 18;
+
+  // SATURN & REALISTIC 3D PARTICLE RINGS
+  const saturnTexture = textureLoader.load('https://threejs.org/examples/textures/planets/saturn_1024.jpg');
+  const saturnGroup = new THREE.Group();
+  
+  const saturnMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(2.2, 32, 32),
+    new THREE.MeshStandardMaterial({ map: saturnTexture, roughness: 0.8 })
+  );
+  saturnGroup.add(saturnMesh);
+
+  // Construct 8,000+ Individual 3D Ring Particles
+  const ringParticleCount = 8000;
+  const ringPositions = new Float32Array(ringParticleCount * 3);
+  const ringColors = new Float32Array(ringParticleCount * 3);
+
+  for (let i = 0; i < ringParticleCount; i++) {
+    // Generate radial distances skipping Cassini Division gap (3.6 to 3.8)
+    let radius = 2.8 + Math.random() * 2.2;
+    if (radius > 3.6 && radius < 3.8) {
+      radius += 0.3; // Creates distinct gap in ring system
+    }
+
+    const angle = Math.random() * Math.PI * 2;
+    
+    // Spread in flat orbital plane with slight vertical thickness
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const y = (Math.random() - 0.5) * 0.12;
+
+    ringPositions[i * 3] = x;
+    ringPositions[i * 3 + 1] = y;
+    ringPositions[i * 3 + 2] = z;
+
+    // Realistic dusty ice/rock colors (cream, tan, grey)
+    const colorType = Math.random();
+    if (colorType > 0.6) {
+      ringColors[i * 3] = 0.85; ringColors[i * 3 + 1] = 0.80; ringColors[i * 3 + 2] = 0.70; // Cream
+    } else if (colorType > 0.3) {
+      ringColors[i * 3] = 0.65; ringColors[i * 3 + 1] = 0.58; ringColors[i * 3 + 2] = 0.48; // Tan
+    } else {
+      ringColors[i * 3] = 0.45; ringColors[i * 3 + 1] = 0.45; ringColors[i * 3 + 2] = 0.45; // Grey Rock
+    }
+  }
+
+  const ringGeometry = new THREE.BufferGeometry();
+  ringGeometry.setAttribute('position', new THREE.BufferAttribute(ringPositions, 3));
+  ringGeometry.setAttribute('color', new THREE.BufferAttribute(ringColors, 3));
+
+  const ringMaterial = new THREE.PointsMaterial({
+    size: 0.08,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85
+  });
+
+  const ringParticleSystem = new THREE.Points(ringGeometry, ringMaterial);
+  ringParticleSystem.rotation.x = Math.PI / 8; // Slight natural planetary tilt
+  saturnGroup.add(ringParticleSystem);
+
+  scene.add(saturnGroup);
+  let saturnAngle = Math.PI * 1.2;
+  const saturnOrbitRadius = 32;
 
   // 5. ASTEROID CREATION & DATA
   const clickableObjects = [];
@@ -306,7 +378,8 @@
     });
 
   // 6. CAMERA & CONTROLS
-  camera.position.z = 12;
+  camera.position.z = 16;
+  camera.position.y = 5;
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
   // 7. RAYCASTING & CLICK LOGIC
@@ -321,13 +394,11 @@
     const intersects = raycaster.intersectObjects(clickableObjects);
 
     if (intersects.length > 0) {
-      // Trigger high pitched UI sound
       playHighPitchClick();
 
       const asteroid = intersects[0].object;
       const data = asteroid.userData;
 
-      // Update Panel Content
       document.getElementById('ast-name').innerText = data.name;
       document.getElementById('ast-size').innerText = Math.round(data.diameter);
       document.getElementById('ast-vel').innerText = Math.round(Number(data.velocity)).toLocaleString();
@@ -341,13 +412,11 @@
         hazElem.className = "safe";
       }
 
-      // Show panel
       const panel = document.getElementById('click-panel');
       panel.style.display = 'block';
     }
   }
 
-  // Hover effect to update cursor
   window.addEventListener('mousemove', (event) => {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -363,13 +432,31 @@
   function animate() {
     requestAnimationFrame(animate);
 
+    // Rotations
     earth.rotation.y += 0.002;
     moon.rotation.y += 0.0001;
+    mars.rotation.y += 0.0018;
+    saturnMesh.rotation.y += 0.003;
 
+    // Slow independent rotation of Saturn's particle rings
+    ringParticleSystem.rotation.z -= 0.0005;
+
+    // Moon Orbiting Earth
     moonAngle += 0.008;
     moon.position.x = Math.cos(moonAngle) * moonOrbitRadius;
     moon.position.z = Math.sin(moonAngle) * moonOrbitRadius;
 
+    // Mars Orbit
+    marsAngle += 0.0012;
+    mars.position.x = Math.cos(marsAngle) * marsOrbitRadius;
+    mars.position.z = Math.sin(marsAngle) * marsOrbitRadius;
+
+    // Saturn Orbit
+    saturnAngle += 0.0006;
+    saturnGroup.position.x = Math.cos(saturnAngle) * saturnOrbitRadius;
+    saturnGroup.position.z = Math.sin(saturnAngle) * saturnOrbitRadius;
+
+    // Asteroid Orbits
     asteroidsData.forEach(ast => {
       ast.angle += ast.speed;
       ast.mesh.position.x = Math.cos(ast.angle) * ast.radius;
