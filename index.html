@@ -80,7 +80,7 @@
     <h1>NASA Near-Earth Asteroids</h1>
     <p id="status">Fetching real live data from NASA...</p>
     <p id="count"></p>
-    <p style="color: #888; font-style: italic; margin-top: 10px;">Click anywhere to enable sound. Click any rock to inspect NASA data.</p>
+    <p style="color: #888; font-style: italic; margin-top: 10px;">Click screen once to activate sound. Click an asteroid to inspect NASA data.</p>
   </div>
 
   <!-- Top Right Click Panel -->
@@ -93,64 +93,66 @@
   </div>
 
   <!-- Audio Status Label -->
-  <div id="audio-status">Audio: Click screen to enable</div>
+  <div id="audio-status">Audio: Click screen to start</div>
 
 <script>
-
   // -------------------------------------------------------------
-  // AUDIO SYNTHESIZER (Web Audio API)
+  // AUDIO SYNTHESIZER ENGINE
   // -------------------------------------------------------------
   let audioCtx = null;
-  let ambientOsc1 = null;
-  let ambientOsc2 = null;
-  let audioInitialized = false;
+  let audioStarted = false;
 
-  function initAudio() {
-    if (audioInitialized) {
+  function startAudioEngine() {
+    if (audioStarted) {
       if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
       return;
     }
-    
+
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     audioCtx = new AudioContext();
 
-    // Ensure Audio Context is active
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
     }
 
-    // Audible Ambient Cosmic Hum (Low Frequency Tri-Oscillator)
-    ambientOsc1 = audioCtx.createOscillator();
-    ambientOsc2 = audioCtx.createOscillator();
-    const ambientGain = audioCtx.createGain();
+    // CONTINUOUS AMBIENT COSMIC DRONE
+    const osc1 = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
 
-    // Use sawtooth/sine combination for rich ambient space drone
-    ambientOsc1.type = 'sine';
-    ambientOsc1.frequency.setValueAtTime(65, audioCtx.currentTime); // Low Deep Drone
+    // Low cosmic frequencies (Sine + Sawtooth mix)
+    osc1.type = 'sawtooth';
+    osc1.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A
 
-    ambientOsc2.type = 'triangle';
-    ambientOsc2.frequency.setValueAtTime(130, audioCtx.currentTime); // Harmonic layer
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(110, audioCtx.currentTime); // Octave
 
-    // Raised gain from 0.04 to 0.18 so it's clearly audible
-    ambientGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    // Lowpass filter to soften the synth hum into space ambiance
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(220, audioCtx.currentTime);
 
-    ambientOsc1.connect(ambientGain);
-    ambientOsc2.connect(ambientGain);
-    ambientGain.connect(audioCtx.destination);
+    // Master Volume for Ambient Drone
+    gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
 
-    ambientOsc1.start();
-    ambientOsc2.start();
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
 
-    audioInitialized = true;
+    osc1.start();
+    osc2.start();
+
+    audioStarted = true;
     document.getElementById('audio-status').innerText = 'Audio: Active 🔊';
     document.getElementById('audio-status').style.color = '#4f4';
     document.getElementById('audio-status').style.borderColor = '#4f4';
   }
 
-  // High-Pitched "Among Us" Style Sci-Fi UI Click Sound
-  function playScanSound() {
+  // HIGH-PITCHED AMONG US STYLE CLICK SOUND
+  function playHighPitchClick() {
     if (!audioCtx) return;
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
@@ -159,32 +161,32 @@
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
 
-    // Triangle wave gives it that sharp retro arcade/sci-fi bite
+    // Triangle wave for crisp arcade interface chirp
     osc.type = 'triangle';
-    
-    // Rapid high-pitched frequency sweep (1200Hz -> 2800Hz)
-    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(2800, audioCtx.currentTime + 0.08);
 
-    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+    // High frequency sweep (1400Hz up to 3200Hz)
+    const now = audioCtx.currentTime;
+    osc.frequency.setValueAtTime(1400, now);
+    osc.frequency.exponentialRampToValueAtTime(3200, now + 0.07);
+
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
 
     osc.connect(gain);
     gain.connect(audioCtx.destination);
 
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.08);
+    osc.start(now);
+    osc.stop(now + 0.07);
   }
 
-  // Universal Click Trigger for Audio Activation
-  window.addEventListener('click', () => {
-    initAudio();
+  // GLOBAL CLICK ACTIVATOR
+  window.addEventListener('pointerdown', () => {
+    startAudioEngine();
   });
-  
 
 
   // -------------------------------------------------------------
-  // 1. THREE.JS SCENE & CAMERA SETUP
+  // 1. THREE.JS SCENE SETUP
   // -------------------------------------------------------------
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -319,8 +321,8 @@
     const intersects = raycaster.intersectObjects(clickableObjects);
 
     if (intersects.length > 0) {
-      // Play sci-fi ping audio
-      playScanSound();
+      // Trigger high pitched UI sound
+      playHighPitchClick();
 
       const asteroid = intersects[0].object;
       const data = asteroid.userData;
