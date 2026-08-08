@@ -54,6 +54,21 @@
       cursor: pointer;
     }
     #close-btn:hover { color: #fff; }
+
+    /* Audio Toggle Indicator */
+    #audio-status {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: #888;
+      font-size: 12px;
+      background: rgba(0,0,0,0.6);
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 1px solid #444;
+      pointer-events: none;
+      z-index: 99;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -65,7 +80,7 @@
     <h1>NASA Near-Earth Asteroids</h1>
     <p id="status">Fetching real live data from NASA...</p>
     <p id="count"></p>
-    <p style="color: #888; font-style: italic; margin-top: 10px;">Click any rock to inspect NASA data.</p>
+    <p style="color: #888; font-style: italic; margin-top: 10px;">Click anywhere to enable sound. Click any rock to inspect NASA data.</p>
   </div>
 
   <!-- Top Right Click Panel -->
@@ -77,8 +92,88 @@
     <p>Status: <span id="ast-haz"></span></p>
   </div>
 
+  <!-- Audio Status Label -->
+  <div id="audio-status">Audio: Click screen to enable</div>
+
 <script>
-  // 1. SCENE & CAMERA SETUP
+  // -------------------------------------------------------------
+  // AUDIO SYNTHESIZER (Web Audio API)
+  // -------------------------------------------------------------
+  let audioCtx = null;
+  let ambientOsc1 = null;
+  let ambientOsc2 = null;
+  let audioInitialized = false;
+
+  function initAudio() {
+    if (audioInitialized) return;
+    
+    // Create Audio Context
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContext();
+
+    // Low, deep cosmic background hum (Dual Sine Wave Oscillators)
+    ambientOsc1 = audioCtx.createOscillator();
+    ambientOsc2 = audioCtx.createOscillator();
+    const ambientGain = audioCtx.createGain();
+
+    ambientOsc1.type = 'sine';
+    ambientOsc1.frequency.setValueAtTime(55, audioCtx.currentTime); // Low A note
+
+    ambientOsc2.type = 'sine';
+    ambientOsc2.frequency.setValueAtTime(110, audioCtx.currentTime); // Subtle octave higher
+
+    ambientGain.gain.setValueAtTime(0.04, audioCtx.currentTime); // Very quiet ambient background
+
+    ambientOsc1.connect(ambientGain);
+    ambientOsc2.connect(ambientGain);
+    ambientGain.connect(audioCtx.destination);
+
+    ambientOsc1.start();
+    ambientOsc2.start();
+
+    audioInitialized = true;
+    document.getElementById('audio-status').innerText = 'Audio: Active 🔊';
+    document.getElementById('audio-status').style.color = '#4f4';
+    document.getElementById('audio-status').style.borderColor = '#4f4';
+  }
+
+  // Sci-Fi Scan Beep Sound when clicking an asteroid
+  function playScanSound() {
+    if (!audioCtx) return;
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    // Frequency sweep from 800Hz to 1200Hz for a futuristic ping
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.12);
+
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.12);
+  }
+
+  // Enable audio on first user click anywhere on screen
+  window.addEventListener('click', () => {
+    initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }, { once: false });
+
+
+  // -------------------------------------------------------------
+  // 1. THREE.JS SCENE & CAMERA SETUP
+  // -------------------------------------------------------------
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -212,6 +307,9 @@
     const intersects = raycaster.intersectObjects(clickableObjects);
 
     if (intersects.length > 0) {
+      // Play sci-fi ping audio
+      playScanSound();
+
       const asteroid = intersects[0].object;
       const data = asteroid.userData;
 
@@ -229,7 +327,7 @@
         hazElem.className = "safe";
       }
 
-      // Show panel directly
+      // Show panel
       const panel = document.getElementById('click-panel');
       panel.style.display = 'block';
     }
@@ -245,7 +343,6 @@
     document.body.style.cursor = intersects.length > 0 ? 'pointer' : 'default';
   });
 
-  // Dual click triggers to guarantee touch/mouse detection
   window.addEventListener('click', checkClick);
 
   // 8. ANIMATION LOOP
