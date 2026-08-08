@@ -76,7 +76,7 @@
     <h1>NASA Near-Earth Asteroids</h1>
     <p id="status">Fetching real live data from NASA...</p>
     <p id="count"></p>
-    <p style="color: #888; font-style: italic; margin-top: 10px;">Click screen for sound. Drag/scroll to zoom!</p>
+    <p style="color: #888; font-style: italic; margin-top: 10px;">Click screen for audio. Drag/scroll to zoom!</p>
   </div>
 
   <div id="click-panel">
@@ -153,51 +153,68 @@
 
   window.addEventListener('pointerdown', startAudioEngine);
 
-  // LOCAL PROCEDURAL TEXTURES
+  // DETAILED TEXTURE GENERATORS
   function generateEarthTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 256;
+    canvas.width = 1024; canvas.height = 512;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#1a66ff'; ctx.fillRect(0, 0, 512, 256);
-    ctx.fillStyle = '#2d8a4e';
-    for(let i=0; i<30; i++) {
-      ctx.beginPath(); ctx.arc(Math.random()*512, Math.random()*256, 20 + Math.random()*50, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#0f2a4a'; ctx.fillRect(0, 0, 1024, 512);
+    ctx.fillStyle = '#1e5927';
+    for(let i = 0; i < 80; i++) {
+      ctx.beginPath();
+      ctx.arc(Math.random() * 1024, Math.random() * 512, 30 + Math.random() * 90, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.fillStyle = '#4a7c38';
+    for(let i = 0; i < 40; i++) {
+      ctx.beginPath();
+      ctx.arc(Math.random() * 1024, Math.random() * 512, 15 + Math.random() * 45, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Polar caps
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 1024, 30);
+    ctx.fillRect(0, 482, 1024, 30);
     return new THREE.CanvasTexture(canvas);
   }
 
   function generateMarsTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 256;
+    canvas.width = 1024; canvas.height = 512;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ff3300'; ctx.fillRect(0, 0, 512, 256);
-    ctx.fillStyle = '#881100';
-    for(let i=0; i<50; i++) {
-      ctx.beginPath(); ctx.arc(Math.random()*512, Math.random()*256, 15 + Math.random()*40, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#a63914'; ctx.fillRect(0, 0, 1024, 512);
+    ctx.fillStyle = '#6e2107';
+    for(let i = 0; i < 100; i++) {
+      ctx.beginPath();
+      ctx.arc(Math.random() * 1024, Math.random() * 512, 10 + Math.random() * 60, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.fillStyle = '#e8dec8';
+    ctx.beginPath(); ctx.arc(512, 15, 25, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(512, 497, 20, 0, Math.PI * 2); ctx.fill();
     return new THREE.CanvasTexture(canvas);
   }
 
   function generateMoonTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 256; canvas.height = 128;
+    canvas.width = 512; canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#aaaaaa'; ctx.fillRect(0, 0, 256, 128);
-    ctx.fillStyle = '#555555';
-    for(let i=0; i<30; i++) {
-      ctx.beginPath(); ctx.arc(Math.random()*256, Math.random()*128, 4 + Math.random()*15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#7a7a7a'; ctx.fillRect(0, 0, 512, 256);
+    ctx.fillStyle = '#4a4a4a';
+    for(let i = 0; i < 60; i++) {
+      ctx.beginPath(); ctx.arc(Math.random() * 512, Math.random() * 256, 5 + Math.random() * 20, 0, Math.PI * 2); ctx.fill();
     }
     return new THREE.CanvasTexture(canvas);
   }
 
   function generateSaturnTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 512; canvas.height = 256;
+    canvas.width = 1024; canvas.height = 512;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#e2bf7d'; ctx.fillRect(0, 0, 512, 256);
-    ctx.fillStyle = '#c49a52';
-    for(let y=0; y<256; y+=12) {
-      if(Math.random() > 0.4) ctx.fillRect(0, y, 512, 6 + Math.random()*8);
+    ctx.fillStyle = '#cbb281'; ctx.fillRect(0, 0, 1024, 512);
+    for(let y = 0; y < 512; y += 8) {
+      ctx.fillStyle = (y % 16 === 0) ? '#a88f5d' : '#d8c497';
+      ctx.fillRect(0, y, 1024, 4 + Math.random() * 6);
     }
     return new THREE.CanvasTexture(canvas);
   }
@@ -207,25 +224,33 @@
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
   document.body.appendChild(renderer.domElement);
+
+  // LIGHTING SYSTEM
+  const ambientLight = new THREE.AmbientLight(0x1e2025, 0.3);
+  scene.add(ambientLight);
+
+  const sunLight = new THREE.PointLight(0xffffff, 2.5, 300, 0.5);
+  scene.add(sunLight);
 
   // SUN
   const sun = new THREE.Mesh(
-    new THREE.SphereGeometry(4.5, 32, 32),
-    new THREE.MeshBasicMaterial({ color: 0xffffaa })
+    new THREE.SphereGeometry(4.5, 64, 64),
+    new THREE.MeshBasicMaterial({ color: 0xfff5d6 })
   );
   scene.add(sun);
 
   function createSunGlowTexture() {
     const canvas = document.createElement('canvas');
-    canvas.width = 128; canvas.height = 128;
+    canvas.width = 256; canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
     grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    grad.addColorStop(0.3, 'rgba(255, 240, 200, 0.6)');
-    grad.addColorStop(0.7, 'rgba(255, 200, 120, 0.2)');
+    grad.addColorStop(0.25, 'rgba(255, 220, 130, 0.8)');
+    grad.addColorStop(0.6, 'rgba(255, 140, 40, 0.25)');
     grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, 128, 128);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 256, 256);
     return new THREE.CanvasTexture(canvas);
   }
 
@@ -234,72 +259,72 @@
     transparent: true,
     blending: THREE.AdditiveBlending
   }));
-  sunGlow.scale.set(16, 16, 1);
+  sunGlow.scale.set(18, 18, 1);
   sun.add(sunGlow);
 
   // STARFIELD
   const starsGeometry = new THREE.BufferGeometry();
-  const starsCount = 4000;
+  const starsCount = 5000;
   const starPositions = new Float32Array(starsCount * 3);
-  for (let i = 0; i < starsCount * 3; i++) starPositions[i] = (Math.random() - 0.5) * 500;
+  for (let i = 0; i < starsCount * 3; i++) starPositions[i] = (Math.random() - 0.5) * 600;
   starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-  scene.add(new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 })));
+  scene.add(new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 })));
 
-  // ORBIT LINE DRAWING HELPER
-  function createOrbitLine(radius, colorHex) {
+  // ORBIT LINE HELPER
+  function createOrbitLine(radius) {
     const points = [];
-    for (let i = 0; i <= 64; i++) {
-      const theta = (i / 64) * Math.PI * 2;
+    for (let i = 0; i <= 128; i++) {
+      const theta = (i / 128) * Math.PI * 2;
       points.push(new THREE.Vector3(Math.cos(theta) * radius, 0, Math.sin(theta) * radius));
     }
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: colorHex, transparent: true, opacity: 0.3 });
+    const material = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12 });
     return new THREE.LineLoop(geometry, material);
   }
 
-  // MARS (ORBIT RADIUS 12 - BRIGHT RED)
-  const marsOrbitRadius = 12;
-  scene.add(createOrbitLine(marsOrbitRadius, 0xff3300));
-
-  const marsGroup = new THREE.Group();
-  const marsMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(2.0, 32, 32),
-    new THREE.MeshBasicMaterial({ map: generateMarsTexture() })
-  );
-  marsGroup.add(marsMesh);
-  scene.add(marsGroup);
-  let marsAngle = Math.PI / 2;
-
-  // EARTH & MOON (ORBIT RADIUS 20 - BRIGHT BLUE)
-  const earthOrbitRadius = 20;
-  scene.add(createOrbitLine(earthOrbitRadius, 0x1a66ff));
+  // 1. EARTH & MOON (ORBIT RADIUS 16 - INSIDE MARS)
+  const earthOrbitRadius = 16;
+  scene.add(createOrbitLine(earthOrbitRadius));
 
   const earthGroup = new THREE.Group();
   const earth = new THREE.Mesh(
-    new THREE.SphereGeometry(2.2, 32, 32),
-    new THREE.MeshBasicMaterial({ map: generateEarthTexture() })
+    new THREE.SphereGeometry(2.0, 64, 64),
+    new THREE.MeshStandardMaterial({ map: generateEarthTexture(), roughness: 0.6, metalness: 0.1 })
   );
   earthGroup.add(earth);
 
   const moon = new THREE.Mesh(
-    new THREE.SphereGeometry(0.6, 32, 32),
-    new THREE.MeshBasicMaterial({ map: generateMoonTexture() })
+    new THREE.SphereGeometry(0.5, 32, 32),
+    new THREE.MeshStandardMaterial({ map: generateMoonTexture(), roughness: 0.9 })
   );
   earthGroup.add(moon);
   let moonAngle = 0;
-  const moonOrbitRadius = 4.5;
+  const moonOrbitRadius = 3.8;
 
   scene.add(earthGroup);
   let earthAngle = 0;
 
-  // SATURN (ORBIT RADIUS 32 - BRIGHT GOLD)
-  const saturnOrbitRadius = 32;
-  scene.add(createOrbitLine(saturnOrbitRadius, 0xe2bf7d));
+  // 2. MARS (ORBIT RADIUS 24 - OUTSIDE EARTH)
+  const marsOrbitRadius = 24;
+  scene.add(createOrbitLine(marsOrbitRadius));
+
+  const marsGroup = new THREE.Group();
+  const marsMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(1.4, 64, 64),
+    new THREE.MeshStandardMaterial({ map: generateMarsTexture(), roughness: 0.8 })
+  );
+  marsGroup.add(marsMesh);
+  scene.add(marsGroup);
+  let marsAngle = Math.PI / 3;
+
+  // 3. SATURN (ORBIT RADIUS 36)
+  const saturnOrbitRadius = 36;
+  scene.add(createOrbitLine(saturnOrbitRadius));
 
   const saturnGroup = new THREE.Group();
   const saturnMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(2.5, 32, 32),
-    new THREE.MeshBasicMaterial({ map: generateSaturnTexture() })
+    new THREE.SphereGeometry(2.6, 64, 64),
+    new THREE.MeshStandardMaterial({ map: generateSaturnTexture(), roughness: 0.7 })
   );
   saturnGroup.add(saturnMesh);
 
@@ -314,18 +339,18 @@
     return new THREE.CanvasTexture(canvas);
   }
 
-  const ringParticleCount = 8000;
+  const ringParticleCount = 9000;
   const ringPositions = new Float32Array(ringParticleCount * 3);
   const ringColors = new Float32Array(ringParticleCount * 3);
 
   for (let i = 0; i < ringParticleCount; i++) {
-    let radius = 3.2 + Math.random() * 2.5;
-    if (radius > 4.2 && radius < 4.5) radius += 0.3;
+    let radius = 3.4 + Math.random() * 2.8;
+    if (radius > 4.5 && radius < 4.8) radius += 0.3;
     const angle = Math.random() * Math.PI * 2;
     ringPositions[i * 3] = Math.cos(angle) * radius;
-    ringPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.15;
+    ringPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.12;
     ringPositions[i * 3 + 2] = Math.sin(angle) * radius;
-    ringColors[i * 3] = 0.85; ringColors[i * 3 + 1] = 0.75; ringColors[i * 3 + 2] = 0.60;
+    ringColors[i * 3] = 0.82; ringColors[i * 3 + 1] = 0.72; ringColors[i * 3 + 2] = 0.58;
   }
 
   const ringGeometry = new THREE.BufferGeometry();
@@ -333,17 +358,17 @@
   ringGeometry.setAttribute('color', new THREE.BufferAttribute(ringColors, 3));
 
   const ringParticleSystem = new THREE.Points(ringGeometry, new THREE.PointsMaterial({
-    size: 0.22,
+    size: 0.2,
     map: createRockTexture(),
     vertexColors: true,
     transparent: true,
     alphaTest: 0.2
   }));
-  ringParticleSystem.rotation.x = Math.PI / 7;
+  ringParticleSystem.rotation.x = Math.PI / 6;
   saturnGroup.add(ringParticleSystem);
 
   scene.add(saturnGroup);
-  let saturnAngle = Math.PI * 1.2;
+  let saturnAngle = Math.PI * 1.4;
 
   // ASTEROIDS
   const clickableObjects = [];
@@ -354,16 +379,19 @@
   function createAsteroid(name, diameterMeters, isHazardous, velocity) {
     const size = Math.max(0.12, Math.min(0.35, diameterMeters / 300));
     const asteroidGeometry = new THREE.DodecahedronGeometry(size, 1);
-    const color = isHazardous ? 0xff4444 : 0xaaaaaa;
-    const asteroidMesh = new THREE.Mesh(asteroidGeometry, new THREE.MeshBasicMaterial({ color: color }));
+    const color = isHazardous ? 0xff3333 : 0x888888;
+    const asteroidMesh = new THREE.Mesh(
+      asteroidGeometry,
+      new THREE.MeshStandardMaterial({ color: color, roughness: 0.9 })
+    );
 
-    const radius = 5.5 + Math.random() * 6;
+    const radius = 5.0 + Math.random() * 5.5;
     const angle = Math.random() * Math.PI * 2;
     const speed = (Math.random() * 0.004) + 0.002;
 
     asteroidMesh.position.x = Math.cos(angle) * radius;
     asteroidMesh.position.z = Math.sin(angle) * radius;
-    asteroidMesh.position.y = (Math.random() - 0.5) * 3;
+    asteroidMesh.position.y = (Math.random() - 0.5) * 2.5;
 
     earthGroup.add(asteroidMesh);
 
@@ -402,7 +430,7 @@
       countElem.innerText = 'Tracked Asteroids Near Earth: 20 (Simulated)';
     });
 
-  camera.position.set(0, 25, 40);
+  camera.position.set(0, 30, 45);
   const controls = new THREE.OrbitControls(camera, renderer.domElement);
 
   const raycaster = new THREE.Raycaster();
@@ -465,7 +493,7 @@
     earthGroup.position.x = Math.cos(earthAngle) * earthOrbitRadius;
     earthGroup.position.z = Math.sin(earthAngle) * earthOrbitRadius;
 
-    marsAngle += 0.002;
+    marsAngle += 0.001;
     marsGroup.position.x = Math.cos(marsAngle) * marsOrbitRadius;
     marsGroup.position.z = Math.sin(marsAngle) * marsOrbitRadius;
 
